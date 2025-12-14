@@ -527,7 +527,7 @@ namespace TarkovQuestScanner
                         // Remove common OCR noise/punctuation from ends
                         cleanLine = cleanLine.Trim('.', ',', ':', ';', '-', ' ', '[', ']', '(', ')', '{', '}', '^', '*', '\'');
                         
-                        bool isPve = cleanLine.IndexOf("[PVE ZONE]", StringComparison.OrdinalIgnoreCase) >= 0 || cleanLine.IndexOf("ZONE]", StringComparison.OrdinalIgnoreCase) >= 0;
+                        bool isPve = cleanLine.IndexOf("[PVE ZONE]", StringComparison.OrdinalIgnoreCase) >= 0;
                         if (mode == "PVP" && isPve) continue;
 
                         if (cleanLine.Length < 3 || ignoreList.Contains(cleanLine)) continue;
@@ -588,23 +588,70 @@ namespace TarkovQuestScanner
 
         private TaskData FindBestMatch(string search)
         {
-            int minDist = 999;
+            int bestScore = 99999;
             TaskData best = null;
-            
+            string mode = "PVP";
+            if (Program.settings.ContainsKey("Mode")) mode = Program.settings["Mode"];
+
+            string lowerSearch = search.ToLower();
+            char[] searchChars = lowerSearch.ToCharArray();
+
             foreach (var task in Program.tarkovAPI.tasks)
             {
-                 int dist = levenshteinDistance(search.ToLower().ToCharArray(), task.name.ToLower().ToCharArray());
-                 if (dist < minDist)
+                 string normName = task.name;
+                 bool isPvpTask = false;
+                 bool isPveTask = false;
+
+                 // Check and strip PVP tag
+                 int pvpIndex = normName.IndexOf("[PVP ZONE]", StringComparison.OrdinalIgnoreCase);
+                 if (pvpIndex >= 0) 
                  {
-                     minDist = dist;
+                     isPvpTask = true;
+                     normName = normName.Remove(pvpIndex, 10).Trim();
+                 }
+                 
+                 // Check and strip PVE tag
+                 int pveIndex = normName.IndexOf("[PVE ZONE]", StringComparison.OrdinalIgnoreCase);
+                 if (pveIndex >= 0) 
+                 {
+                     isPveTask = true;
+                     normName = normName.Remove(pveIndex, 10).Trim();
+                 }
+
+                 int dist = levenshteinDistance(searchChars, normName.ToLower().ToCharArray());
+                 // Scale distance to prioritize it heavily over mode preference (avoid matching wrong Part #)
+                 int score = dist * 10;
+
+                 if (mode == "PVP")
+                 {
+                     if (isPvpTask) score -= 2; // Prefer PVP
+                     else if (isPveTask) score += 5; // Avoid PVE
+                     else score += 1; // Generic: slight penalty to break tie with PVP
+                 }
+                 else // PVE
+                 {
+                     if (isPveTask) score -= 2; // Prefer PVE
+                     else if (isPvpTask) score += 5; // Avoid PVP
+                     else score -= 1; // Generic: slight bonus to break tie with PVP
+                 }
+
+                 if (score < bestScore)
+                 {
+                     bestScore = score;
                      best = task;
                  }
             }
 
             if (best != null)
             {
-                double maxLen = Math.Max(search.Length, best.name.Length);
-                double confidence = 1.0 - (minDist / maxLen);
+                string normalizedBestName = best.name;
+                normalizedBestName = System.Text.RegularExpressions.Regex.Replace(normalizedBestName, @"\[.*?ZONE\]", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+                
+                double maxLen = Math.Max(search.Length, normalizedBestName.Length);
+                if (maxLen == 0) maxLen = 1;
+
+                int realDist = levenshteinDistance(searchChars, normalizedBestName.ToLower().ToCharArray());
+                double confidence = 1.0 - ((double)realDist / maxLen);
 
                 if (confidence >= 0.70)
                 {
@@ -874,12 +921,38 @@ namespace TarkovQuestScanner
 
         private void TrayShow_Click(object sender, EventArgs e)
         {
-            this.Show();
+            ShowMainWindow();
         }
 
         private void TrayIcon_MouseDoubleClick(object sender, MouseEventArgs e)
         {
-            this.Show();
+            ShowMainWindow();
+        }
+
+        private void ShowMainWindow()
+        {
+            if (this.IsDisposed) return;
+
+            if (this.InvokeRequired)
+            {
+                try { this.BeginInvoke(new Action(ShowMainWindow)); } catch { }
+                return;
+            }
+
+            try
+            {
+                this.ShowInTaskbar = true;
+                this.Show();
+                if (this.WindowState == FormWindowState.Minimized)
+                {
+                    this.WindowState = FormWindowState.Normal;
+                }
+                this.Activate();
+                this.BringToFront();
+            }
+            catch
+            {
+            }
         }
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
