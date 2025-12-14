@@ -18,7 +18,8 @@ namespace TarkovQuestScanner
                 id = t.id ?? Guid.NewGuid().ToString(), 
                 name = t.name, 
                 map = t.map?.name ?? "Global/Multi-Map",
-                wikiLink = t.wikiLink
+                wikiLink = t.wikiLink,
+                objectives = t.objectives?.Select(o => new { maps = o.maps?.Select(m => m.name).ToList() }).ToList()
             }).ToList();
 
             var foundIds = foundTasks.Select(t => t.id).Where(id => id != null).ToList();
@@ -102,8 +103,23 @@ namespace TarkovQuestScanner
             sb.AppendLine("  activeIds.forEach(id => {");
             sb.AppendLine("    const t = ALL_TASKS.find(x => x.id === id);");
             sb.AppendLine("    if(!t) return;");
-            sb.AppendLine("    if(t.map === 'Global/Multi-Map' || !t.map) globalTasks.push(t);");
-            sb.AppendLine("    else { if(!mapTasks[t.map]) mapTasks[t.map] = []; mapTasks[t.map].push(t); }");
+            sb.AppendLine("    let maps = new Set();");
+            sb.AppendLine("    if (t.objectives) {");
+            sb.AppendLine("      t.objectives.forEach(obj => {");
+            sb.AppendLine("        if (obj.maps) obj.maps.forEach(m => maps.add(m));");
+            sb.AppendLine("      });");
+            sb.AppendLine("    }");
+            sb.AppendLine("    if (maps.size === 0 && t.map && t.map !== 'Global/Multi-Map') maps.add(t.map);");
+            
+            sb.AppendLine("    if(maps.size === 0) {");
+            sb.AppendLine("      globalTasks.push(t);");
+            sb.AppendLine("    } else {");
+            sb.AppendLine("      maps.forEach(map => {");
+            sb.AppendLine("        if(!mapTasks[map]) mapTasks[map] = [];");
+            sb.AppendLine("        // Check if already added to avoid dupes in same list (unlikely but safe)");
+            sb.AppendLine("        if(!mapTasks[map].find(x => x.id === t.id)) mapTasks[map].push(t);");
+            sb.AppendLine("      });");
+            sb.AppendLine("    }");
             sb.AppendLine("  });");
 
             sb.AppendLine("  // Process Completed");
@@ -111,6 +127,11 @@ namespace TarkovQuestScanner
             sb.AppendLine("    const t = ALL_TASKS.find(x => x.id === id);");
             sb.AppendLine("    if(t) completedTasks.push(t);");
             sb.AppendLine("  });");
+
+            sb.AppendLine("  // Sort lists");
+            sb.AppendLine("  const nameSort = (a,b) => a.name.localeCompare(b.name);");
+            sb.AppendLine("  globalTasks.sort(nameSort);");
+            sb.AppendLine("  completedTasks.sort(nameSort);");
 
             sb.AppendLine("  // Render Col 1: Global");
             sb.AppendLine("  renderList('col-global', globalTasks, false);");
@@ -126,7 +147,7 @@ namespace TarkovQuestScanner
             sb.AppendLine("     mapContainer.appendChild(div);");
             sb.AppendLine("     const ul = document.createElement('ul');");
             sb.AppendLine("     ul.className = 'quest-list';");
-            sb.AppendLine("     mapTasks[map].forEach(t => ul.appendChild(createItem(t, false)));");
+            sb.AppendLine("     mapTasks[map].sort(nameSort).forEach(t => ul.appendChild(createItem(t, false)));");
             sb.AppendLine("     mapContainer.appendChild(ul);");
             sb.AppendLine("  });");
 
