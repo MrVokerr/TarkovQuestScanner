@@ -19,7 +19,7 @@ namespace TarkovQuestScanner
                 name = t.name, 
                 map = t.map?.name ?? "Global/Multi-Map",
                 wikiLink = t.wikiLink,
-                objectives = t.objectives?.Select(o => new { maps = o.maps?.Select(m => m.name).ToList() }).ToList()
+                objectives = t.objectives?.Select(o => new { type = o.type, maps = o.maps?.Select(m => m.name).ToList() }).ToList()
             }).ToList();
 
             var foundIds = foundTasks.Select(t => t.id).Where(id => id != null).ToList();
@@ -47,6 +47,7 @@ namespace TarkovQuestScanner
             sb.AppendLine(".quest-item:last-child { border-bottom: none; }");
             sb.AppendLine("a { color: #4fc3f7; text-decoration: none; transition: color 0.2s; margin-left: 8px; flex: 1; }");
             sb.AppendLine("a:hover { color: #29b6f6; text-decoration: underline; }");
+            sb.AppendLine(".quest-icons { margin-right: 5px; font-size: 1.1em; }");
             sb.AppendLine(".map-header { color: #ffa726; font-weight: bold; margin-top: 15px; margin-bottom: 5px; display: flex; justify-content: space-between; }");
             sb.AppendLine(".quest-count { background-color: #333; padding: 2px 6px; border-radius: 10px; font-size: 0.8em; }");
             sb.AppendLine("input[type=checkbox] { cursor: pointer; margin-right: 5px; }");
@@ -56,6 +57,8 @@ namespace TarkovQuestScanner
             sb.AppendLine("button { padding: 8px 15px; background: #2e7d32; color: white; border: none; border-radius: 4px; cursor: pointer; }");
             sb.AppendLine("button:hover { background: #1b5e20; }");
             sb.AppendLine("#completed-list { opacity: 0.7; }");
+            sb.AppendLine(".delete-btn { margin-left: 10px; color: #555; cursor: pointer; font-weight: bold; padding: 0 8px; font-size: 1.1em; transition: color 0.2s; }");
+            sb.AppendLine(".delete-btn:hover { color: #e53935; }");
             sb.AppendLine("</style>");
             
             sb.AppendLine("<script>");
@@ -64,6 +67,7 @@ namespace TarkovQuestScanner
             sb.AppendLine($"const ERRORS = {errorsJson};");
             sb.AppendLine("const COMPLETED_KEY = 'tarkov_completed_quests';");
             sb.AppendLine("const MANUAL_KEY = 'tarkov_manual_quests';");
+            sb.AppendLine("const HIDDEN_KEY = 'tarkov_hidden_quests';");
             sb.AppendLine($"const CURRENT_VERSION = {version};");
             sb.AppendLine("setInterval(async () => { try { let v = await fetch('/version').then(r=>r.text()); if(parseInt(v) > CURRENT_VERSION) location.reload(); } catch {} }, 1000);");
 
@@ -74,6 +78,14 @@ namespace TarkovQuestScanner
             sb.AppendLine("  let list = getStorage(COMPLETED_KEY);");
             sb.AppendLine("  if(list.includes(id)) list = list.filter(x => x !== id); else list.push(id);");
             sb.AppendLine("  setStorage(COMPLETED_KEY, list);");
+            sb.AppendLine("  render();");
+            sb.AppendLine("}");
+
+            sb.AppendLine("function hideQuest(id) {");
+            sb.AppendLine("  if(!confirm('Remove this quest from the list?')) return;");
+            sb.AppendLine("  let list = getStorage(HIDDEN_KEY);");
+            sb.AppendLine("  if(!list.includes(id)) list.push(id);");
+            sb.AppendLine("  setStorage(HIDDEN_KEY, list);");
             sb.AppendLine("  render();");
             sb.AppendLine("}");
 
@@ -89,10 +101,26 @@ namespace TarkovQuestScanner
             sb.AppendLine("  render();");
             sb.AppendLine("}");
 
+            sb.AppendLine("function getTaskIcons(t) {");
+            sb.AppendLine("  if(!t.objectives) return '';");
+            sb.AppendLine("  const types = new Set();");
+            sb.AppendLine("  t.objectives.forEach(o => {");
+            sb.AppendLine("    const type = o.type ? o.type.toLowerCase() : '';");
+            sb.AppendLine("    if(type === 'elimination') types.add('☠️');");
+            sb.AppendLine("    else if(type.includes('find') || type.includes('handover') || type.includes('give')) types.add('📦');");
+            sb.AppendLine("    else if(type.includes('mark') || type.includes('place')) types.add('📍');");
+            sb.AppendLine("    else if(type.includes('visit') || type.includes('scout') || type.includes('locate')) types.add('🔭');");
+            sb.AppendLine("    else if(type.includes('skill')) types.add('💪');");
+            sb.AppendLine("    else types.add('📝');");
+            sb.AppendLine("  });");
+            sb.AppendLine("  return Array.from(types).join(' ');");
+            sb.AppendLine("}");
+
             sb.AppendLine("function render() {");
             sb.AppendLine("  const completedIds = getStorage(COMPLETED_KEY);");
             sb.AppendLine("  const manualIds = getStorage(MANUAL_KEY);");
-            sb.AppendLine("  const activeIds = [...new Set([...SCANNED_IDS, ...manualIds])].filter(id => !completedIds.includes(id));");
+            sb.AppendLine("  const hiddenIds = getStorage(HIDDEN_KEY);");
+            sb.AppendLine("  const activeIds = [...new Set([...SCANNED_IDS, ...manualIds])].filter(id => !completedIds.includes(id) && !hiddenIds.includes(id));");
             
             sb.AppendLine("  // Buckets");
             sb.AppendLine("  const globalTasks = [];");
@@ -124,6 +152,7 @@ namespace TarkovQuestScanner
 
             sb.AppendLine("  // Process Completed");
             sb.AppendLine("  completedIds.forEach(id => {");
+            sb.AppendLine("    if(hiddenIds.includes(id)) return;");
             sb.AppendLine("    const t = ALL_TASKS.find(x => x.id === id);");
             sb.AppendLine("    if(t) completedTasks.push(t);");
             sb.AppendLine("  });");
@@ -172,9 +201,27 @@ namespace TarkovQuestScanner
             sb.AppendLine("  const chk = document.createElement('input'); chk.type='checkbox'; chk.checked = checked;");
             sb.AppendLine("  chk.onclick = () => toggleComplete(t.id);");
             sb.AppendLine("  const a = document.createElement('a');");
+            
+            sb.AppendLine("  const icons = getTaskIcons(t);");
+            sb.AppendLine("  if(icons) {");
+            sb.AppendLine("    const span = document.createElement('span');");
+            sb.AppendLine("    span.className = 'quest-icons';");
+            sb.AppendLine("    span.textContent = icons;");
+            sb.AppendLine("    a.appendChild(span);");
+            sb.AppendLine("  }");
+            sb.AppendLine("  a.appendChild(document.createTextNode(t.name));");
+
             sb.AppendLine("  a.href = t.wikiLink || `https://escapefromtarkov.fandom.com/wiki/${t.name.replace(/ /g, '_')}`;");
-            sb.AppendLine("  a.target = '_blank'; a.textContent = t.name;");
+            sb.AppendLine("  a.target = '_blank';");
             sb.AppendLine("  li.appendChild(chk); li.appendChild(a);");
+
+            sb.AppendLine("  const del = document.createElement('span');");
+            sb.AppendLine("  del.className = 'delete-btn';");
+            sb.AppendLine("  del.innerHTML = '✕';");
+            sb.AppendLine("  del.title = 'Remove quest';");
+            sb.AppendLine("  del.onclick = (e) => { e.preventDefault(); hideQuest(t.id); };");
+            sb.AppendLine("  li.appendChild(del);");
+
             sb.AppendLine("  return li;");
             sb.AppendLine("}");
 

@@ -229,7 +229,7 @@ namespace TarkovQuestScanner
                     Debug.WriteLine("\n--> Updating API...");
                     Log("Fetching Quest DB from tarkov.dev...");
 
-                    var queryStr = "{\r\n  tasks(lang: en, gameMode: regular) {\r\n    id\r\n    name\r\n    map {\r\n      name\r\n    }\r\n    wikiLink\r\n  }\r\n}";
+                    var queryStr = "{\r\n  tasks(lang: en, gameMode: regular) {\r\n    id\r\n    name\r\n    map {\r\n      name\r\n    }\r\n    wikiLink\r\n    objectives {\r\n      type\r\n      description\r\n      maps {\r\n        name\r\n      }\r\n    }\r\n  }\r\n}";
                     var data = new Dictionary<string, string>()
                         {
                             {"query", queryStr}
