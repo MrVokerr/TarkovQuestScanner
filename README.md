@@ -16,8 +16,9 @@ This overlay tool helps Escape from Tarkov players track their active quests in 
     -   Visual C++ Redistributable 2015-2022
 3.  **Run:** Launch `TarkovQuestScanner.exe`.
 4.  **Configuration:**
-    -   (Optional) Enter your [TarkovTracker API Key](https://tarkovtracker.io/settings) in the settings to enable progress filtering.
-    -   Press **Apply API** to save and sync.
+    -   (Optional) Enter your [TarkovTracker API Key](https://tarkovtracker.io/settings) in the settings.
+    -   The input box will turn **Green** if the key is valid, or **Red** if invalid.
+    -   Your progress will automatically sync when quests are scanned.
 
 ## How to Build from Source
 

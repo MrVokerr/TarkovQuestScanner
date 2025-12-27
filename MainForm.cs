@@ -1,3 +1,5 @@
+using HtmlAgilityPack;
+using Newtonsoft.Json;
 using OpenCvSharp;
 using OpenCvSharp.Extensions;
 using Sdcb.PaddleInference;
@@ -7,6 +9,7 @@ using Sdcb.PaddleOCR.Models.Online;
 using System;
 using System.IO;
 using System.Net;
+using System.Net.Http;
 using System.Collections.Generic;
 using System.Linq;
 using System.Diagnostics;
@@ -203,6 +206,21 @@ namespace TarkovQuestScanner
             else
                 modeSelector.Text = "PVP";
 
+            if (Program.settings.ContainsKey("TarkovTrackerAPIKey"))
+            {
+                textBoxTarkovTrackerAPI.Text = Program.settings["TarkovTrackerAPIKey"];
+                // Trigger verification without blocking UI
+                Task.Run(async () => 
+                {
+                    bool isValid = await TarkovTrackerAPI.VerifyToken(textBoxTarkovTrackerAPI.Text);
+                    this.Invoke(new Action(() => 
+                    {
+                        if (isValid) textBoxTarkovTrackerAPI.BackColor = System.Drawing.Color.FromArgb(0, 64, 0);
+                        else textBoxTarkovTrackerAPI.BackColor = System.Drawing.Color.FromArgb(64, 0, 0);
+                    }));
+                });
+            }
+
             PaddleRecognizer(null);//init ocr
 
             TrayIcon.Visible = true;
@@ -213,6 +231,57 @@ namespace TarkovQuestScanner
         {
             Program.settings["Mode"] = modeSelector.Text;
             Program.SaveSettings();
+        }
+
+        private void textBoxTarkovTrackerAPI_TextChanged(object sender, EventArgs e)
+        {
+            Program.settings["TarkovTrackerAPIKey"] = textBoxTarkovTrackerAPI.Text;
+            Program.SaveSettings();
+            textBoxTarkovTrackerAPI.BackColor = System.Drawing.Color.FromArgb(30, 30, 30); // Reset color on edit
+        }
+
+        private async void textBoxTarkovTrackerAPI_Leave(object sender, EventArgs e)
+        {
+            string token = textBoxTarkovTrackerAPI.Text.Trim();
+            if (!string.IsNullOrEmpty(token))
+            {
+                bool isValid = await TarkovTrackerAPI.VerifyToken(token);
+                if (isValid)
+                    textBoxTarkovTrackerAPI.BackColor = System.Drawing.Color.FromArgb(0, 64, 0); // Dark Green
+                else
+                    textBoxTarkovTrackerAPI.BackColor = System.Drawing.Color.FromArgb(64, 0, 0); // Dark Red
+            }
+        }
+
+        private async void btnTestToken_Click(object sender, EventArgs e)
+        {
+            string token = textBoxTarkovTrackerAPI.Text.Trim();
+            if (string.IsNullOrEmpty(token))
+            {
+                Program.Log("Error: API Key is empty.");
+                return;
+            }
+
+            Program.Log("Testing API Token...");
+            var profile = await TarkovTrackerAPI.GetUserProfile(token);
+            
+            if (profile != null)
+            {
+                string faction = !string.IsNullOrEmpty(profile.pmcFaction) ? profile.pmcFaction : "Unknown";
+                string level = profile.playerLevel.HasValue ? profile.playerLevel.ToString() : "Unknown";
+                
+                Program.Log($"SUCCESS: Connected to TarkovTracker!");
+                Program.Log($"Profile: Level {level}, Faction: {faction}");
+                
+                // Also visually confirm by setting green
+                textBoxTarkovTrackerAPI.BackColor = System.Drawing.Color.FromArgb(0, 64, 0); 
+            }
+            else
+            {
+                Program.Log("FAILED: Could not retrieve profile.");
+                Program.Log("Please check your API Token and internet connection.");
+                textBoxTarkovTrackerAPI.BackColor = System.Drawing.Color.FromArgb(64, 0, 0);
+            }
         }
 
         private void SetHook()
@@ -561,6 +630,21 @@ namespace TarkovQuestScanner
             // Accumulate to session list
             sessionFoundTasks.AddRange(currentScanMatches);
             sessionFoundTasks = sessionFoundTasks.Distinct().ToList();
+
+            // Update TarkovTracker if API key is present
+            if (Program.settings.ContainsKey("TarkovTrackerAPIKey"))
+            {
+                string apiKey = Program.settings["TarkovTrackerAPIKey"];
+                if (!string.IsNullOrEmpty(apiKey) && currentScanMatches.Count > 0)
+                {
+                    foreach (var task in currentScanMatches)
+                    {
+                        string tid = task.id;
+                        Task.Run(() => TarkovTrackerAPI.UpdateTaskProgress(tid, apiKey));
+                    }
+                    Program.Log($"Sent {currentScanMatches.Count} quests to TarkovTracker.");
+                }
+            }
 
             // Generate HTML Report
             if (sessionFoundTasks.Count > 0 || notFoundNames.Count > 0)
@@ -1060,6 +1144,35 @@ namespace TarkovQuestScanner
                         resp.ContentLength64 = buf.Length;
                         resp.OutputStream.Write(buf, 0, buf.Length);
                     }
+                    else if (ctx.Request.Url.AbsolutePath == "/reset")
+                    {
+                        sessionFoundTasks.Clear();
+                        _reportVersion++;
+                         // Regenerate empty report so immediate reload works
+                        _reportHtml = HtmlGenerator.GenerateReport(sessionFoundTasks, new List<string>(), Program.tarkovAPI.tasks, _reportVersion);
+                        
+                        byte[] buf = Encoding.UTF8.GetBytes("OK");
+                        resp.ContentType = "text/plain";
+                        resp.ContentLength64 = buf.Length;
+                        resp.OutputStream.Write(buf, 0, buf.Length);
+                    }
+                    else if (ctx.Request.Url.AbsolutePath == "/wiki-images")
+                    {
+                        string url = ctx.Request.QueryString["url"];
+                        if (!string.IsNullOrEmpty(url))
+                        {
+                            var images = await GetWikiImages(url);
+                            string json = JsonConvert.SerializeObject(images);
+                            byte[] buf = Encoding.UTF8.GetBytes(json);
+                            resp.ContentType = "application/json";
+                            resp.ContentLength64 = buf.Length;
+                            resp.OutputStream.Write(buf, 0, buf.Length);
+                        }
+                        else
+                        {
+                            resp.StatusCode = 400;
+                        }
+                    }
                     else
                     {
                         byte[] buf = Encoding.UTF8.GetBytes(_reportHtml);
@@ -1071,6 +1184,83 @@ namespace TarkovQuestScanner
                 }
                 catch { }
             }
+        }
+
+        private async Task<List<string>> GetWikiImages(string url)
+        {
+            List<string> imageUrls = new List<string>();
+            try
+            {
+                string html = "";
+                using (HttpClient client = new HttpClient())
+                {
+                    client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
+                    html = await client.GetStringAsync(url);
+                }
+
+                HtmlAgilityPack.HtmlDocument doc = new HtmlAgilityPack.HtmlDocument();
+                doc.LoadHtml(html);
+                
+                var contentNode = doc.DocumentNode.SelectSingleNode("//div[@class='mw-parser-output']");
+                if (contentNode != null)
+                {
+                    // 1. Look for gallery images (most likely what we want)
+                    var galleryImages = contentNode.SelectNodes(".//ul[contains(@class,'gallery')]//img");
+                    if (galleryImages != null)
+                    {
+                        foreach(var img in galleryImages) ProcessImageNode(img, imageUrls);
+                    }
+
+                    // 2. Look for standard images in anchors
+                    var anchorImages = contentNode.SelectNodes(".//a[@class='image']//img");
+                    if (anchorImages != null)
+                    {
+                        foreach (var img in anchorImages) ProcessImageNode(img, imageUrls);
+                    }
+                    
+                    // 3. Fallback: Find any image if we still have nothing
+                    if (imageUrls.Count == 0)
+                    {
+                        var allImages = contentNode.SelectNodes(".//img");
+                        if (allImages != null)
+                        {
+                            foreach(var img in allImages) ProcessImageNode(img, imageUrls);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Program.Log("Wiki fetch error: " + ex.Message);
+            }
+            return imageUrls.Distinct().ToList();
+        }
+
+        private void ProcessImageNode(HtmlAgilityPack.HtmlNode img, List<string> imageUrls)
+        {
+            try {
+                string src = img.GetAttributeValue("src", "");
+                int width = img.GetAttributeValue("width", 0);
+                int height = img.GetAttributeValue("height", 0);
+                
+                string dataSrc = img.GetAttributeValue("data-src", "");
+                if (!string.IsNullOrEmpty(dataSrc)) src = dataSrc;
+
+                if (!string.IsNullOrEmpty(src))
+                {
+                    // Width/Height check removed because lazy-loaded images often have small placeholder dimensions
+                    // but contain valid high-res URLs in data-src.
+                    // if (width > 60 && height > 60) 
+                    {
+                        int scaleIndex = src.IndexOf("/scale-to-width-down/");
+                        if (scaleIndex > 0)
+                        {
+                            src = src.Substring(0, scaleIndex);
+                        }
+                        imageUrls.Add(src);
+                    }
+                }
+            } catch {}
         }
 
         private void OpenReport_Click(object sender, EventArgs e)

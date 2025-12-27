@@ -1,0 +1,29 @@
+# Installation & Usage Instructions
+
+## Installation
+This application is portable and does not require a standard installer.
+
+1. **Extract** the contents of this zip file to a folder of your choice (e.g., Desktop or Documents).
+   * Do NOT run the .exe directly from inside the zip file. Extract it first!
+
+## Prerequisites
+Most Windows computers will already have these installed. If the app fails to start, please install:
+
+1. **Visual C++ Redistributable (2015-2022)**
+   * Download: https://aka.ms/vs/17/release/vc_redist.x64.exe
+   * This is required for the image recognition to work.
+
+2. **.NET Framework 4.7.2**
+   * Included in Windows 10 and 11 by default.
+   * Download: https://dotnet.microsoft.com/download/dotnet-framework/net472
+
+## How to Run
+1. Open the folder where you extracted the files.
+2. Double-click **TarkovQuestScanner.exe**.
+
+## Using TarkovTracker API
+1. Launch the application.
+2. In the settings window, locate the **API Key** box.
+3. Paste your API token from [TarkovTracker.io](https://tarkovtracker.io/settings).
+4. If the box turns **Green**, your key is valid!
+5. Open your in-game "Tasks" tab and press **F9**. Your quests will be scanned and automatically synced to your tracker.

@@ -7,14 +7,56 @@ namespace TarkovQuestScanner
 {
     public class TarkovTrackerAPI
     {
+        public static async Task<Data> GetUserProfile(string token)
+        {
+            using (var client = new HttpClient())
+            {
+                client.DefaultRequestHeaders.Add("User-Agent", "TarkovQuestScanner/1.0");
+                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                try
+                {
+                    var response = await client.GetAsync("https://tarkovtracker.io/api/v2/token");
+                    if (response.IsSuccessStatusCode)
+                    {
+                        string json = await response.Content.ReadAsStringAsync();
+                        // The endpoint returns the token info directly (Token schema) or user data?
+                        // Docs say "User's progress data." which is the Root schema.
+                        // However, based on the VerifyToken success, let's assume it returns Root.
+                        // If it fails to deserialize, we'll catch it.
+                        var root = Newtonsoft.Json.JsonConvert.DeserializeObject<Root>(json);
+                        return root?.data;
+                    }
+                }
+                catch { }
+                return null;
+            }
+        }
+
+        public static async Task<bool> VerifyToken(string token)
+        {
+            using (var client = new HttpClient())
+            {
+                client.DefaultRequestHeaders.Add("User-Agent", "TarkovQuestScanner/1.0");
+                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                try
+                {
+                    var response = await client.GetAsync("https://tarkovtracker.io/api/v2/token");
+                    return response.IsSuccessStatusCode;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+        }
+
         public static async Task UpdateTaskProgress(string taskId, string token, string state = "started")
         {
             using (var client = new HttpClient())
             {
                 client.DefaultRequestHeaders.Add("User-Agent", "TarkovQuestScanner/1.0");
-                //client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token); // Removed
-                //client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Token", token); // Removed
-                client.DefaultRequestHeaders.Add("x-api-token", token);
+                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                //client.DefaultRequestHeaders.Add("x-api-token", token);
                 try
                 {
                     // Construct JSON body with state. Example: { "state": "started" }
@@ -35,6 +77,7 @@ namespace TarkovQuestScanner
             public string displayName { get; set; }
             public string userId { get; set; }
             public int? playerLevel { get; set; }
+            public string pmcFaction { get; set; }
             public int? gameEdition { get; set; }
         }
 

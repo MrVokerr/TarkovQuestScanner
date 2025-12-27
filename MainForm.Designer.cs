@@ -41,6 +41,9 @@ namespace TarkovQuestScanner
             this.check_idle_time = new System.Windows.Forms.Timer(this.components);
             this.panel8 = new System.Windows.Forms.Panel();
             this.modeSelector = new System.Windows.Forms.ComboBox();
+            this.labelTarkovTrackerAPI = new System.Windows.Forms.Label();
+            this.textBoxTarkovTrackerAPI = new System.Windows.Forms.TextBox();
+            this.btnTestToken = new System.Windows.Forms.Button();
             this.openReport_b = new System.Windows.Forms.Button();
             this.logBox = new System.Windows.Forms.RichTextBox();
             this.Version = new System.Windows.Forms.Label();
@@ -140,30 +143,69 @@ namespace TarkovQuestScanner
             // 
             this.panel8.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(45)))), ((int)(((byte)(45)))), ((int)(((byte)(48)))));
             this.panel8.Controls.Add(this.modeSelector);
+            this.panel8.Controls.Add(this.labelTarkovTrackerAPI);
+            this.panel8.Controls.Add(this.textBoxTarkovTrackerAPI);
+            this.panel8.Controls.Add(this.btnTestToken);
             this.panel8.Controls.Add(this.openReport_b);
             this.panel8.Location = new System.Drawing.Point(308, 12);
             this.panel8.Name = "panel8";
             this.panel8.Size = new System.Drawing.Size(300, 105);
             this.panel8.TabIndex = 17;
-            // 
-            // modeSelector
-            // 
-            this.modeSelector.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(30)))), ((int)(((byte)(30)))));
-            this.modeSelector.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.modeSelector.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.modeSelector.ForeColor = System.Drawing.Color.White;
-            this.modeSelector.Items.AddRange(new object[] {
-            "PVP",
-            "PVE"});
-            this.modeSelector.Location = new System.Drawing.Point(10, 10);
-            this.modeSelector.Name = "modeSelector";
-            this.modeSelector.Size = new System.Drawing.Size(75, 23);
-            this.modeSelector.TabIndex = 20;
-            this.modeSelector.SelectedIndexChanged += new System.EventHandler(this.modeSelector_SelectedIndexChanged);
-            // 
-            // openReport_b
-            // 
-            this.openReport_b.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(45)))), ((int)(((byte)(45)))), ((int)(((byte)(48)))));
+                        // 
+                        // modeSelector
+                        // 
+                        this.modeSelector.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(30)))), ((int)(((byte)(30)))));
+                        this.modeSelector.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+                        this.modeSelector.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+                        this.modeSelector.ForeColor = System.Drawing.Color.White;
+                        this.modeSelector.Items.AddRange(new object[] {
+                        "PVP",
+                        "PVE"});
+                        this.modeSelector.Location = new System.Drawing.Point(10, 10);
+                        this.modeSelector.Name = "modeSelector";
+                        this.modeSelector.Size = new System.Drawing.Size(75, 23);
+                        this.modeSelector.TabIndex = 20;
+                        this.modeSelector.SelectedIndexChanged += new System.EventHandler(this.modeSelector_SelectedIndexChanged);
+                        // 
+                        // labelTarkovTrackerAPI
+                        // 
+                        this.labelTarkovTrackerAPI.AutoSize = true;
+                        this.labelTarkovTrackerAPI.ForeColor = System.Drawing.Color.Gainsboro;
+                        this.labelTarkovTrackerAPI.Location = new System.Drawing.Point(10, 43);
+                        this.labelTarkovTrackerAPI.Name = "labelTarkovTrackerAPI";
+                        this.labelTarkovTrackerAPI.Size = new System.Drawing.Size(51, 12);
+                        this.labelTarkovTrackerAPI.TabIndex = 21;
+                        this.labelTarkovTrackerAPI.Text = "API Key:";
+                        // 
+                        // textBoxTarkovTrackerAPI
+                        // 
+                        this.textBoxTarkovTrackerAPI.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(30)))), ((int)(((byte)(30)))));
+                        this.textBoxTarkovTrackerAPI.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+                        this.textBoxTarkovTrackerAPI.ForeColor = System.Drawing.Color.White;
+                        this.textBoxTarkovTrackerAPI.Location = new System.Drawing.Point(65, 40);
+                        this.textBoxTarkovTrackerAPI.Name = "textBoxTarkovTrackerAPI";
+                                    this.textBoxTarkovTrackerAPI.Size = new System.Drawing.Size(220, 21);
+                                                this.textBoxTarkovTrackerAPI.TabIndex = 22;
+                                                this.textBoxTarkovTrackerAPI.TextChanged += new System.EventHandler(this.textBoxTarkovTrackerAPI_TextChanged);
+                                                this.textBoxTarkovTrackerAPI.Leave += new System.EventHandler(this.textBoxTarkovTrackerAPI_Leave);
+                                                // 
+                                                // btnTestToken
+                                                // 
+                                                this.btnTestToken.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(45)))), ((int)(((byte)(45)))), ((int)(((byte)(48)))));
+                                                this.btnTestToken.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(100)))), ((int)(((byte)(100)))), ((int)(((byte)(100)))));
+                                                this.btnTestToken.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+                                                this.btnTestToken.ForeColor = System.Drawing.Color.Gainsboro;
+                                                this.btnTestToken.Location = new System.Drawing.Point(235, 10);
+                                                this.btnTestToken.Name = "btnTestToken";
+                                                this.btnTestToken.Size = new System.Drawing.Size(50, 23);
+                                                this.btnTestToken.TabIndex = 23;
+                                                this.btnTestToken.Text = "Test";
+                                                this.btnTestToken.UseVisualStyleBackColor = false;
+                                                this.btnTestToken.Click += new System.EventHandler(this.btnTestToken_Click);
+                                                // 
+                                                // openReport_b
+                                                // 
+                                                this.openReport_b.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(45)))), ((int)(((byte)(45)))), ((int)(((byte)(48)))));
             this.openReport_b.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(100)))), ((int)(((byte)(100)))), ((int)(((byte)(100)))));
             this.openReport_b.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.openReport_b.ForeColor = System.Drawing.Color.Gainsboro;
@@ -255,6 +297,9 @@ namespace TarkovQuestScanner
         private System.Windows.Forms.Timer check_idle_time;
         private System.Windows.Forms.Panel panel8;
         private System.Windows.Forms.ComboBox modeSelector;
+        private System.Windows.Forms.Label labelTarkovTrackerAPI;
+        private System.Windows.Forms.TextBox textBoxTarkovTrackerAPI;
+        private System.Windows.Forms.Button btnTestToken;
         private System.Windows.Forms.Button openReport_b;
         private System.Windows.Forms.RichTextBox logBox;
         private System.Windows.Forms.Label Version;

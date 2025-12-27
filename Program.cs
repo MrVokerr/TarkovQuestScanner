@@ -114,6 +114,13 @@ namespace TarkovQuestScanner
         [STAThread]
         static void Main()
         {
+            // Add dll/x64 to PATH for native dependencies
+            try {
+                var path = Environment.GetEnvironmentVariable("PATH");
+                var binDir = Path.Combine(BaseDir, "dll", "x64");
+                Environment.SetEnvironmentVariable("PATH", path + ";" + binDir);
+            } catch { }
+
             EnsureAppDataDirectories();
 
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
@@ -229,7 +236,7 @@ namespace TarkovQuestScanner
                     Debug.WriteLine("\n--> Updating API...");
                     Log("Fetching Quest DB from tarkov.dev...");
 
-                    var queryStr = "{\r\n  tasks(lang: en, gameMode: regular) {\r\n    id\r\n    name\r\n    map {\r\n      name\r\n    }\r\n    wikiLink\r\n    objectives {\r\n      type\r\n      description\r\n      maps {\r\n        name\r\n      }\r\n    }\r\n  }\r\n}";
+                    var queryStr = "{\r\n  tasks(lang: en) {\r\n    id\r\n    name\r\n    map {\r\n      name\r\n    }\r\n    wikiLink\r\n    objectives {\r\n      type\r\n      description\r\n      maps {\r\n        name\r\n      }\r\n    }\r\n  }\r\n}";
                     var data = new Dictionary<string, string>()
                         {
                             {"query", queryStr}
